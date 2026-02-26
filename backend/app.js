@@ -101,15 +101,15 @@ export function createApp(env = process.env) {
   }
 
   async function askOpenAI({ system, prompt }) {
-    const response = await openai.responses.create({
+    const response = await openai.chat.completions.create({
       model: MODEL,
       temperature: 0.2,
-      input: [
+      messages: [
         { role: 'system', content: system },
         { role: 'user', content: prompt }
       ]
     });
-    const text = extractResponseText(response);
+    const text = response.choices?.[0]?.message?.content || '';
     if (!text) throw new Error('A resposta do modelo veio vazia.');
     return text;
   }
