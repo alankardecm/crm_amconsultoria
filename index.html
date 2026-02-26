@@ -117,11 +117,29 @@
       </div>
 
       <button class="btn-enter" id="btn-enter" disabled>Entrar no sistema</button>
+
+      <div class="cloud-auth-card" id="cloud-auth-card" style="display:none">
+        <div class="cloud-auth-title">☁️ Login Seguro (Supabase)</div>
+        <div class="cloud-auth-sub">Use e-mail e senha para ambiente de produção.</div>
+        <div class="form-field">
+          <label class="form-label">E-mail</label>
+          <input type="email" class="form-control" id="cloud-email" placeholder="voce@empresa.com" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Senha</label>
+          <input type="password" class="form-control" id="cloud-password" placeholder="••••••••" />
+        </div>
+        <button class="btn-enter" id="btn-cloud-login">Entrar com Supabase</button>
+        <div class="cloud-auth-msg" id="cloud-auth-msg"></div>
+      </div>
+
       <div class="version">Nexus AI CRM v1.0 · Consultoria de Inteligência Artificial</div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/data.js"></script>
+  <script src="js/cloud-auth.js"></script>
   <script>
     // Particles
     const pc = document.getElementById('particles');
@@ -180,6 +198,43 @@
                    'clientes.html';
       window.location.href = dest;
     });
+
+    // Supabase cloud auth (optional)
+    (async () => {
+      const card = document.getElementById('cloud-auth-card');
+      const msg = document.getElementById('cloud-auth-msg');
+      const btn = document.getElementById('btn-cloud-login');
+      const state = await CloudAuth.init();
+      if (!state.enabled) return;
+      card.style.display = 'block';
+      msg.textContent = 'Modo cloud ativo.';
+      msg.className = 'cloud-auth-msg ok';
+
+      btn.addEventListener('click', async () => {
+        const email = document.getElementById('cloud-email').value.trim();
+        const password = document.getElementById('cloud-password').value;
+        if (!email || !password) {
+          msg.textContent = 'Informe e-mail e senha.';
+          msg.className = 'cloud-auth-msg warn';
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Validando...';
+        try {
+          const result = await CloudAuth.signIn(email, password);
+          msg.textContent = `Login autorizado para ${result.user.role}.`;
+          msg.className = 'cloud-auth-msg ok';
+          window.location.href = result.redirectTo;
+        } catch (err) {
+          msg.textContent = err.message || 'Falha no login cloud.';
+          msg.className = 'cloud-auth-msg warn';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Entrar com Supabase';
+        }
+      });
+    })();
   </script>
 </body>
 </html>
