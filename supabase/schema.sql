@@ -83,7 +83,7 @@ create table if not exists public.crm_interacoes (
   id uuid primary key default gen_random_uuid(),
   cliente_id uuid not null references public.crm_clientes(id) on delete cascade,
   tipo text not null,
-  desc text not null,
+  descricao text not null,
   data date not null default current_date,
   created_at timestamptz not null default now()
 );
