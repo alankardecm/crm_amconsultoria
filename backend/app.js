@@ -72,15 +72,17 @@ async function exportDOCX({ title, text }) {
 }
 
 export function createApp(env = process.env) {
-  const MODEL = env.OPENAI_MODEL || 'gpt-4.1-mini';
-  const COMPANY_NAME = env.COMPANY_NAME || 'Nexus AI Consultoria';
-  const COMPANY_POSITIONING = env.COMPANY_POSITIONING || 'Consultoria especializada em IA, BI e Dashboards Power BI';
-  const COMPANY_BUSINESS_MODEL = env.COMPANY_BUSINESS_MODEL || 'Consultoria B2B de alto valor, contratos recorrentes e projetos de transformacao orientada a dados';
-  const COMPANY_IDEAL_CLIENT = env.COMPANY_IDEAL_CLIENT || 'PMEs e empresas em crescimento que precisam escalar decisao com IA, BI e automacao';
-  const COMPANY_STYLE = env.COMPANY_STYLE || 'Tom executivo, consultivo, orientado a ROI, com linguagem moderna e tech';
-  const SUPABASE_URL = env.SUPABASE_URL || '';
-  const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY || '';
-  const OPENAI_API_KEY = env.OPENAI_API_KEY;
+  const getEnv = (key, fallback = '') => String(env[key] ?? fallback).trim();
+
+  const MODEL = getEnv('OPENAI_MODEL', 'gpt-4.1-mini');
+  const COMPANY_NAME = getEnv('COMPANY_NAME', 'Nexus AI Consultoria');
+  const COMPANY_POSITIONING = getEnv('COMPANY_POSITIONING', 'Consultoria especializada em IA, BI e Dashboards Power BI');
+  const COMPANY_BUSINESS_MODEL = getEnv('COMPANY_BUSINESS_MODEL', 'Consultoria B2B de alto valor, contratos recorrentes e projetos de transformacao orientada a dados');
+  const COMPANY_IDEAL_CLIENT = getEnv('COMPANY_IDEAL_CLIENT', 'PMEs e empresas em crescimento que precisam escalar decisao com IA, BI e automacao');
+  const COMPANY_STYLE = getEnv('COMPANY_STYLE', 'Tom executivo, consultivo, orientado a ROI, com linguagem moderna e tech');
+  const SUPABASE_URL = getEnv('SUPABASE_URL');
+  const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY');
+  const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
   const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
   const app = express();
