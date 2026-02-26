@@ -1658,10 +1658,10 @@
     async function updateBadges() {
       try {
         const [{ count: pl }, { count: pr }, { count: fi }, { count: tk }] = await Promise.all([
-          SB.from('crm_leads').select('*', { count: 'exact', head: true }).not('stage', 'in', '("fechado","perdido")').catch(() => ({ count: 0 })),
-          SB.from('crm_projetos').select('*', { count: 'exact', head: true }).eq('status', 'em_andamento').catch(() => ({ count: 0 })),
-          SB.from('crm_contratos').select('*', { count: 'exact', head: true }).eq('status', 'pendente').catch(() => ({ count: 0 })),
-          SB.from('crm_tickets').select('*', { count: 'exact', head: true }).in('status', ['aberto', 'em_andamento']).catch(() => ({ count: 0 })),
+          SB.from('crm_leads').select('*', { count: 'exact', head: true }).not('stage', 'in', '("fechado","perdido")').then(res => res, () => ({ count: 0 })),
+          SB.from('crm_projetos').select('*', { count: 'exact', head: true }).eq('status', 'em_andamento').then(res => res, () => ({ count: 0 })),
+          SB.from('crm_contratos').select('*', { count: 'exact', head: true }).eq('status', 'pendente').then(res => res, () => ({ count: 0 })),
+          SB.from('crm_tickets').select('*', { count: 'exact', head: true }).in('status', ['aberto', 'em_andamento']).then(res => res, () => ({ count: 0 })),
         ]);
         setBadge('bdg-pipeline', pl); setBadge('bdg-projetos', pr);
         setBadge('bdg-fin', fi); setBadge('bdg-tickets', tk);
@@ -1781,21 +1781,21 @@
         { data: tickets },
       ] = await Promise.all([
         SB.from('crm_clientes').select('*', { count: 'exact', head: true }).eq('ativo', true),
-        SB.from('crm_leads').select('stage,valor').catch(() => ({ data: [] })),
-        SB.from('crm_projetos').select('*').order('criado_em', { ascending: false }).limit(6).catch(() => ({ data: [] })),
-        SB.from('crm_contratos').select('*').eq('status', 'pendente').order('data_vencimento').limit(5).catch(() => ({ data: [] })),
-        SB.from('crm_tickets').select('*', { count: 'exact', head: true }).in('status', ['aberto', 'em_andamento']).catch(() => ({ count: 0 })),
+        SB.from('crm_leads').select('stage,valor').then(res => res, () => ({ data: [] })),
+        SB.from('crm_projetos').select('*').order('criado_em', { ascending: false }).limit(6).then(res => res, () => ({ data: [] })),
+        SB.from('crm_contratos').select('*').eq('status', 'pendente').order('data_vencimento').limit(5).then(res => res, () => ({ data: [] })),
+        SB.from('crm_tickets').select('*', { count: 'exact', head: true }).in('status', ['aberto', 'em_andamento']).then(res => res, () => ({ count: 0 })),
       ]);
 
       const leadsAtivos = (leads || []).filter(l => l.stage !== 'fechado' && l.stage !== 'perdido');
       const projAtivos = (projetos || []).filter(p => p.status === 'em_progresso');
 
-      const { data: mrr_data } = await SB.from('crm_contratos').select('valor').eq('tipo', 'recorrente').eq('status', 'ativo').catch(() => ({ data: [] }));
+      const { data: mrr_data } = await SB.from('crm_contratos').select('valor').eq('tipo', 'recorrente').eq('status', 'ativo').then(res => res, () => ({ data: [] }));
       const mrr = (mrr_data || []).reduce((s, c) => s + Number(c.valor || 0), 0);
 
       const { data: rec_mes } = await SB.from('crm_contratos').select('valor').eq('status', 'pago')
         .gte('data_vencimento', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
-        .catch(() => ({ data: [] }));
+        .then(res => res, () => ({ data: [] }));
       const recMes = (rec_mes || []).reduce((s, c) => s + Number(c.valor || 0), 0);
 
       el.innerHTML = `
