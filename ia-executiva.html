@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI - IA Executiva</title>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-root"></div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle">☰</button>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">🤖 IA Executiva</div>
+                    <div class="page-subtitle">Sugestoes de negocio, relatorios e inteligencia contratual</div>
+                    <div class="integration-note" id="backend-status">Backend IA: verificando...</div>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" id="btn-refresh-insights">🔄 Atualizar Insights</button>
+                    <button class="btn btn-primary btn-sm" id="btn-gerar-briefing">📌 Gerar Briefing</button>
+                </div>
+            </div>
+
+            <section class="ai-command-hero mb-3">
+                <div class="ai-command-grid"></div>
+                <div class="ai-command-content">
+                    <div class="ai-command-head">
+                        <div>
+                            <div class="ai-command-label">AI COMMAND CENTER</div>
+                            <h2>NEXUS Neural Ops</h2>
+                            <p>Painel tatico para escalar consultoria em IA, BI e Dashboards Power BI com foco em
+                                receita, margem e execucao.</p>
+                        </div>
+                        <div class="ai-chip-group">
+                            <span class="ai-chip">Revenue Intelligence</span>
+                            <span class="ai-chip">Power BI Growth</span>
+                            <span class="ai-chip">Contract Risk Shield</span>
+                        </div>
+                    </div>
+                    <div class="ai-command-metrics">
+                        <div class="ai-metric">
+                            <span>MRR Atual</span>
+                            <strong id="hero-mrr">R$ 0</strong>
+                        </div>
+                        <div class="ai-metric">
+                            <span>Crescimento</span>
+                            <strong id="hero-growth">+0%</strong>
+                        </div>
+                        <div class="ai-metric">
+                            <span>Clientes Ativos</span>
+                            <strong id="hero-clientes">0</strong>
+                        </div>
+                        <div class="ai-metric">
+                            <span>Risco em aberto</span>
+                            <strong id="hero-risco">0</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="grid-2 mb-3">
+                <div class="card">
+                    <div class="card-title">🧠 Sugestoes Prioritarias da IA</div>
+                    <div id="insights-list"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📄 Relatorio Executivo Automatico</div>
+                    <div class="filters-bar" style="margin-bottom:.8rem">
+                        <select class="filter-select" id="report-periodo">
+                            <option value="semanal">Semanal</option>
+                            <option value="quinzenal">Quinzenal</option>
+                            <option value="mensal" selected>Mensal</option>
+                            <option value="trimestral">Trimestral</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="btn-gerar-relatorio">Gerar</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-gerar-relatorio-ia">Gerar com OpenAI</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-exportar-relatorio-pdf">Exportar PDF</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-exportar-relatorio-docx">Exportar DOCX</button>
+                        <button class="btn btn-primary btn-sm" id="btn-copiar-relatorio">Copiar Texto</button>
+                    </div>
+                    <pre class="report-output" id="report-output"></pre>
+                </div>
+            </div>
+
+            <div class="grid-2 mb-3">
+                <div class="card">
+                    <div class="card-title">📝 Gerador de Minuta de Contrato</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-control" id="contract-cliente"></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-control" id="contract-tipo">
+                                <option>Retainer Mensal</option>
+                                <option>Projeto Fechado</option>
+                                <option>Suporte e Evolucao</option>
+                                <option>Squad Dedicado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Valor Mensal (R$)</label>
+                            <input type="number" class="form-control" id="contract-valor" min="0" placeholder="12000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Duracao (meses)</label>
+                            <input type="number" class="form-control" id="contract-duracao" min="1" value="12">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Inicio</label>
+                            <input type="date" class="form-control" id="contract-inicio">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">SLA (horas)</label>
+                            <input type="number" class="form-control" id="contract-sla" min="1" value="8">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Multa de Rescisao (%)</label>
+                            <input type="number" class="form-control" id="contract-multa" min="0" value="20">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Reajuste</label>
+                            <input type="text" class="form-control" id="contract-reajuste" value="IPCA anual">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Escopo</label>
+                        <textarea class="form-control" id="contract-escopo"
+                            placeholder="Descreva entregas, limites e responsabilidades."></textarea>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary btn-sm" id="btn-gerar-minuta">Gerar Minuta</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-gerar-minuta-ia">Minuta com OpenAI</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-exportar-contrato-pdf">Contrato PDF</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-exportar-contrato-docx">Contrato DOCX</button>
+                        <button class="btn btn-primary btn-sm" id="btn-salvar-contrato">Salvar no CRM</button>
+                    </div>
+                    <textarea class="contract-draft" id="contract-draft-output"
+                        placeholder="A minuta gerada aparecera aqui..."></textarea>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔎 Analisador de Contrato</div>
+                    <div class="form-group">
+                        <label class="form-label">Texto do contrato</label>
+                        <textarea class="contract-analysis-input form-control" id="contract-analysis-input"
+                            placeholder="Cole aqui o texto contratual para analise automatica de risco."></textarea>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary btn-sm" id="btn-analisar-contrato">Analisar</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-analisar-openai">Analisar com OpenAI</button>
+                        <button class="btn btn-primary btn-sm" id="btn-usar-minuta">Usar Minuta Gerada</button>
+                    </div>
+                    <div id="contract-analysis-output" class="contract-analysis-output"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📚 Contratos Monitorados</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Contrato</th>
+                                <th>Cliente</th>
+                                <th>Vigencia</th>
+                                <th>Valor</th>
+                                <th>Risco IA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contracts-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <div id="ai-chat-root"></div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/executive-ai.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw new Error('unauth');
+        if (Session.role === 'cliente') window.location.href = 'clientes.html';
+
+        document.getElementById('sidebar-root').innerHTML = renderSidebarHTML('ia-executiva');
+        document.getElementById('ai-chat-root').innerHTML = renderAIChatHTML();
+        initSidebar();
+
+        const clientes = Data.getClientes();
+        let backendOnline = false;
+        let backendAIConfigured = false;
+        const clienteSelect = document.getElementById('contract-cliente');
+        clientes.forEach(c => {
+            clienteSelect.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+        });
+        document.getElementById('contract-inicio').value = new Date().toISOString().split('T')[0];
+
+        async function checkBackend() {
+            const statusEl = document.getElementById('backend-status');
+            try {
+                const res = await fetch('/api/health');
+                if (!res.ok) throw new Error('health failed');
+                const data = await res.json();
+                backendOnline = !!data.ok;
+                backendAIConfigured = !!data.aiConfigured;
+                statusEl.textContent = data.aiConfigured
+                    ? `Backend IA: online (${data.model})`
+                    : 'Backend online sem chave OpenAI configurada.';
+                statusEl.className = 'integration-note ' + (data.aiConfigured ? 'ok' : 'warn');
+            } catch (err) {
+                backendOnline = false;
+                backendAIConfigured = false;
+                statusEl.textContent = 'Backend IA indisponivel. Rode o servidor local para IA real e exportacao.';
+                statusEl.className = 'integration-note warn';
+            }
+        }
+
+        function renderTechHero() {
+            const kpis = Data.getKPIs();
+            const clientesAtivos = Data.getClientes().filter(c => c.status === 'ativo').length;
+            const risco = Data.getClientes().filter(c => c.status === 'churn_risk').length +
+                Data.getTickets().filter(t => t.status === 'aberto' && (t.prioridade === 'alta' || t.prioridade === 'critica')).length;
+            const growth = (((kpis.mrr - kpis.mrrAnterior) / Math.max(kpis.mrrAnterior, 1)) * 100).toFixed(1);
+
+            document.getElementById('hero-mrr').textContent = formatCurrency(kpis.mrr);
+            document.getElementById('hero-growth').textContent = `${growth > 0 ? '+' : ''}${growth}%`;
+            document.getElementById('hero-clientes').textContent = String(clientesAtivos);
+            document.getElementById('hero-risco').textContent = String(risco);
+        }
+
+        function severityBadge(level) {
+            const map = {
+                critica: '<span class="badge badge-danger">Critica</span>',
+                alta: '<span class="badge badge-warning">Alta</span>',
+                media: '<span class="badge badge-info">Media</span>',
+                baixa: '<span class="badge badge-success">Baixa</span>'
+            };
+            return map[level] || '<span class="badge badge-muted">N/A</span>';
+        }
+
+        function riskBadge(level) {
+            const map = {
+                critico: '<span class="badge badge-danger">Critico</span>',
+                alto: '<span class="badge badge-warning">Alto</span>',
+                medio: '<span class="badge badge-info">Medio</span>',
+                baixo: '<span class="badge badge-success">Baixo</span>'
+            };
+            return map[level] || '<span class="badge badge-muted">N/A</span>';
+        }
+
+        function renderInsights(suggestions = ExecutiveAI.generateSuggestions()) {
+            const list = document.getElementById('insights-list');
+            list.innerHTML = suggestions.map((s, i) => `
+              <div class="insight-item">
+                <div class="insight-head">
+                  <div class="insight-title">${i + 1}. ${s.titulo}</div>
+                  ${severityBadge(s.severidade)}
+                </div>
+                <div class="insight-meta">${s.categoria}</div>
+                <div class="insight-desc">${s.descricao}</div>
+                <div class="insight-action">Ação recomendada: ${s.recomendacao}</div>
+              </div>
+            `).join('');
+        }
+
+        function parseSuggestionsJSON(text) {
+            const clean = String(text || '').trim();
+            try {
+                return JSON.parse(clean);
+            } catch (err) {
+                const block = clean.match(/```json\s*([\s\S]*?)```/i) || clean.match(/```\s*([\s\S]*?)```/i);
+                if (!block) return null;
+                try { return JSON.parse(block[1]); } catch (e) { return null; }
+            }
+        }
+
+        async function refreshInsights() {
+            if (!backendAIConfigured) {
+                renderInsights();
+                showToast('Insights atualizados em modo local.', 'info');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/ai/suggestions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ snapshot: ExecutiveAI.getDBSnapshot() })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Falha ao gerar insights IA');
+                const parsed = parseSuggestionsJSON(data.text);
+                if (!Array.isArray(parsed) || !parsed.length) throw new Error('Formato de insights invalido');
+
+                const normalized = parsed.slice(0, 8).map((item, idx) => ({
+                    categoria: item.categoria || 'Estrategia',
+                    severidade: ['critica', 'alta', 'media', 'baixa'].includes(item.severidade) ? item.severidade : 'media',
+                    titulo: item.titulo || `Insight ${idx + 1}`,
+                    descricao: item.descricao || item.impacto_estimado || 'Insight gerado pela OpenAI.',
+                    recomendacao: `${item.recomendacao || 'Avaliar em comite executivo.'}${item.prazo_sugerido ? ` Prazo: ${item.prazo_sugerido}.` : ''}`
+                }));
+                renderInsights(normalized);
+                showToast('Insights atualizados com OpenAI.', 'success');
+            } catch (err) {
+                renderInsights();
+                showToast('Falha no insight IA. Exibindo insights locais.', 'warning');
+            }
+        }
+
+        function generateReport() {
+            const periodo = document.getElementById('report-periodo').value;
+            const report = ExecutiveAI.generateExecutiveReport(undefined, { periodo });
+            document.getElementById('report-output').textContent = report.texto;
+            return report.texto;
+        }
+
+        async function generateReportWithOpenAI() {
+            if (!backendAIConfigured) {
+                showToast('OpenAI nao configurada. Usando modo local.', 'warning');
+                return generateReport();
+            }
+            const periodo = document.getElementById('report-periodo').value;
+            const snapshot = ExecutiveAI.getDBSnapshot();
+            try {
+                const res = await fetch('/api/ai/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ periodo, snapshot })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Falha na IA');
+                document.getElementById('report-output').textContent = data.text;
+                showToast('Relatorio gerado com OpenAI.', 'success');
+                return data.text;
+            } catch (err) {
+                showToast('Nao foi possivel gerar com OpenAI. Usando modo local.', 'warning');
+                return generateReport();
+            }
+        }
+
+        function contractFormData() {
+            const clienteId = document.getElementById('contract-cliente').value;
+            const cliente = Data.getCliente(clienteId);
+            return {
+                clienteId,
+                nomeCliente: cliente ? cliente.nome : 'Cliente',
+                tipo: document.getElementById('contract-tipo').value,
+                valorMensal: Number(document.getElementById('contract-valor').value) || 0,
+                duracaoMeses: Number(document.getElementById('contract-duracao').value) || 12,
+                inicio: document.getElementById('contract-inicio').value,
+                slaHoras: Number(document.getElementById('contract-sla').value) || 8,
+                multaPct: Number(document.getElementById('contract-multa').value) || 20,
+                reajuste: document.getElementById('contract-reajuste').value,
+                escopo: document.getElementById('contract-escopo').value
+            };
+        }
+
+        function generateDraft() {
+            const payload = contractFormData();
+            const draft = ExecutiveAI.generateContractDraft(payload);
+            document.getElementById('contract-draft-output').value = draft;
+            showToast('Minuta gerada com sucesso.', 'success');
+            return draft;
+        }
+
+        async function generateDraftWithOpenAI() {
+            if (!backendAIConfigured) {
+                showToast('OpenAI nao configurada. Gerando minuta local.', 'warning');
+                return generateDraft();
+            }
+            const payload = contractFormData();
+            try {
+                const res = await fetch('/api/ai/contract-draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ payload })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Falha ao gerar minuta IA');
+                document.getElementById('contract-draft-output').value = data.text;
+                showToast('Minuta gerada com OpenAI.', 'success');
+                return data.text;
+            } catch (err) {
+                showToast('Falha na minuta OpenAI. Usando minuta local.', 'warning');
+                return generateDraft();
+            }
+        }
+
+        function saveContract() {
+            const payload = contractFormData();
+            if (!payload.clienteId) return showToast('Selecione um cliente.', 'warning');
+            if (payload.valorMensal <= 0) return showToast('Informe valor mensal do contrato.', 'warning');
+            const fimDate = new Date(payload.inicio + 'T00:00:00');
+            fimDate.setMonth(fimDate.getMonth() + payload.duracaoMeses);
+            const fim = fimDate.toISOString().split('T')[0];
+
+            Data.addContrato({
+                titulo: `${payload.tipo} - ${payload.nomeCliente}`,
+                clienteId: payload.clienteId,
+                tipo: payload.tipo,
+                inicio: payload.inicio,
+                fim,
+                valorMensal: payload.valorMensal,
+                slaHoras: payload.slaHoras,
+                multaRescisaoPct: payload.multaPct,
+                reajuste: payload.reajuste || 'IPCA anual',
+                clausulaLGPD: true,
+                renovacaoAutomatica: true,
+                escopo: payload.escopo || 'Escopo a detalhar em anexo tecnico.'
+            });
+            renderContractsTable();
+            renderInsights();
+            showToast('Contrato salvo no CRM.', 'success');
+        }
+
+        function renderContractAnalysis(result) {
+            const el = document.getElementById('contract-analysis-output');
+            el.innerHTML = `
+              <div class="analysis-summary">
+                <div>${result.resumo}</div>
+                <div>${riskBadge(result.nivel)}</div>
+              </div>
+              <div class="analysis-columns">
+                <div>
+                  <div class="analysis-title">Riscos detectados</div>
+                  <ul class="analysis-list">${result.riscos.map(r => `<li>${r}</li>`).join('')}</ul>
+                </div>
+                <div>
+                  <div class="analysis-title">Recomendacoes</div>
+                  <ul class="analysis-list">${result.recomendacoes.map(r => `<li>${r}</li>`).join('')}</ul>
+                </div>
+              </div>
+            `;
+        }
+
+        function analyzeContractText() {
+            const text = document.getElementById('contract-analysis-input').value;
+            const result = ExecutiveAI.analyzeContractText(text);
+            renderContractAnalysis(result);
+        }
+
+        function renderRawAIAnalysis(title, text) {
+            const el = document.getElementById('contract-analysis-output');
+            el.innerHTML = `
+              <div class="analysis-summary">
+                <div>${title}</div>
+                <div><span class="badge badge-info">OpenAI</span></div>
+              </div>
+              <pre class="report-output" style="min-height:0;max-height:420px">${text}</pre>
+            `;
+        }
+
+        async function analyzeContractWithOpenAI() {
+            const text = document.getElementById('contract-analysis-input').value.trim();
+            if (!text) return showToast('Cole um contrato para analisar.', 'warning');
+            if (!backendAIConfigured) {
+                showToast('OpenAI nao configurada. Usando analise local.', 'warning');
+                return analyzeContractText();
+            }
+            try {
+                const res = await fetch('/api/ai/contract-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Falha na analise');
+                renderRawAIAnalysis('Analise juridico-comercial da OpenAI', data.text);
+                showToast('Analise com OpenAI concluida.', 'success');
+            } catch (err) {
+                showToast('Nao foi possivel analisar com OpenAI. Mantendo analise local.', 'warning');
+                analyzeContractText();
+            }
+        }
+
+        async function downloadFromAPI(url, payload, filenameFallback) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Falha na exportacao');
+            }
+            const blob = await res.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filenameFallback;
+            document.body.appendChild(link);
+            link.click();
+            URL.revokeObjectURL(link.href);
+            link.remove();
+        }
+
+        async function exportReport(format) {
+            const text = document.getElementById('report-output').textContent || generateReport();
+            const periodo = document.getElementById('report-periodo').value;
+            const endpoint = format === 'pdf' ? '/api/export/pdf' : '/api/export/docx';
+            const filename = `relatorio_${periodo}_${new Date().toISOString().split('T')[0]}`;
+            await downloadFromAPI(endpoint, {
+                title: `Relatorio Executivo - ${periodo}`,
+                text,
+                filename
+            }, `${filename}.${format}`);
+            showToast(`Relatorio exportado em ${format.toUpperCase()}.`, 'success');
+        }
+
+        async function exportContract(format) {
+            const text = document.getElementById('contract-draft-output').value.trim();
+            if (!text) return showToast('Gere a minuta antes de exportar.', 'warning');
+            const endpoint = format === 'pdf' ? '/api/export/pdf' : '/api/export/docx';
+            const clienteId = document.getElementById('contract-cliente').value;
+            const cliente = Data.getCliente(clienteId);
+            const nome = (cliente?.nome || 'cliente').toLowerCase().replace(/[^\w]+/g, '_');
+            const filename = `contrato_${nome}_${new Date().toISOString().split('T')[0]}`;
+            await downloadFromAPI(endpoint, {
+                title: 'Minuta Contratual',
+                text,
+                filename
+            }, `${filename}.${format}`);
+            showToast(`Contrato exportado em ${format.toUpperCase()}.`, 'success');
+        }
+
+        function renderContractsTable() {
+            const body = document.getElementById('contracts-tbody');
+            const contratos = Data.getContratos ? Data.getContratos() : [];
+            if (!contratos.length) {
+                body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📄</div><div>Nenhum contrato salvo</div></div></td></tr>';
+                return;
+            }
+            body.innerHTML = contratos.map(ct => {
+                const cliente = Data.getCliente(ct.clienteId);
+                const risk = ExecutiveAI.analyzeContractRecord(ct);
+                return `
+                  <tr>
+                    <td><div style="font-weight:600">${ct.titulo}</div><div style="font-size:.74rem;color:var(--text-muted)">${ct.tipo || '—'}</div></td>
+                    <td>${cliente ? cliente.nome : '—'}</td>
+                    <td>${formatDate(ct.inicio)} a ${formatDate(ct.fim)}</td>
+                    <td>${ct.valorMensal ? formatCurrency(ct.valorMensal) + '/mes' : '—'}</td>
+                    <td>${riskBadge(risk.nivel)} <span style="font-size:.74rem;color:var(--text-muted)">(${risk.score})</span></td>
+                  </tr>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('btn-refresh-insights').addEventListener('click', refreshInsights);
+        document.getElementById('btn-gerar-briefing').addEventListener('click', () => {
+            generateReport();
+            showToast('Briefing executivo gerado.', 'success');
+        });
+        document.getElementById('btn-gerar-relatorio').addEventListener('click', generateReport);
+        document.getElementById('btn-gerar-relatorio-ia').addEventListener('click', generateReportWithOpenAI);
+        document.getElementById('btn-exportar-relatorio-pdf').addEventListener('click', async () => {
+            try { await exportReport('pdf'); } catch (err) { showToast(err.message, 'error'); }
+        });
+        document.getElementById('btn-exportar-relatorio-docx').addEventListener('click', async () => {
+            try { await exportReport('docx'); } catch (err) { showToast(err.message, 'error'); }
+        });
+        document.getElementById('btn-copiar-relatorio').addEventListener('click', async () => {
+            const text = document.getElementById('report-output').textContent || generateReport();
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Relatorio copiado para a area de transferencia.', 'success');
+            } catch (err) {
+                showToast('Nao foi possivel copiar automaticamente.', 'warning');
+            }
+        });
+        document.getElementById('btn-gerar-minuta').addEventListener('click', generateDraft);
+        document.getElementById('btn-gerar-minuta-ia').addEventListener('click', generateDraftWithOpenAI);
+        document.getElementById('btn-exportar-contrato-pdf').addEventListener('click', async () => {
+            try { await exportContract('pdf'); } catch (err) { showToast(err.message, 'error'); }
+        });
+        document.getElementById('btn-exportar-contrato-docx').addEventListener('click', async () => {
+            try { await exportContract('docx'); } catch (err) { showToast(err.message, 'error'); }
+        });
+        document.getElementById('btn-salvar-contrato').addEventListener('click', saveContract);
+        document.getElementById('btn-analisar-contrato').addEventListener('click', analyzeContractText);
+        document.getElementById('btn-analisar-openai').addEventListener('click', analyzeContractWithOpenAI);
+        document.getElementById('btn-usar-minuta').addEventListener('click', () => {
+            const draft = document.getElementById('contract-draft-output').value.trim();
+            if (!draft) return showToast('Gere uma minuta antes.', 'warning');
+            document.getElementById('contract-analysis-input').value = draft;
+            analyzeContractText();
+        });
+
+        checkBackend();
+        renderTechHero();
+        refreshInsights();
+        generateReport();
+        renderContractsTable();
+        initAIChat(Session.role === 'dono' ? 'dono' : 'operador');
+    </script>
+</body>
+
+</html>

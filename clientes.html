@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Clientes</title>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-root"></div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle">☰</button>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">👥 Clientes</div>
+                    <div class="page-subtitle">Gestão da base de clientes e histórico de interações</div>
+                </div>
+                <div class="page-actions" id="page-actions-root">
+                    <button class="btn btn-primary btn-sm" onclick="openModal('modal-novo-cliente')">+ Novo
+                        Cliente</button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters-bar">
+                <input type="text" class="search-input" id="search" placeholder="🔍 Buscar cliente...">
+                <select class="filter-select" id="filter-status">
+                    <option value="">Todos os status</option>
+                    <option value="ativo">Ativo</option>
+                    <option value="lead">Lead</option>
+                    <option value="churn_risk">Risco de Churn</option>
+                    <option value="inativo">Inativo</option>
+                </select>
+                <select class="filter-select" id="filter-seg">
+                    <option value="">Todos os segmentos</option>
+                </select>
+            </div>
+
+            <!-- Table -->
+            <div class="card">
+                <div class="table-wrapper">
+                    <table id="clientes-table">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Segmento</th>
+                                <th>Status</th>
+                                <th>Serviços</th>
+                                <th>MRR</th>
+                                <th>Satisfação</th>
+                                <th>Desde</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientes-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <div id="ai-chat-root"></div>
+    </div>
+
+    <!-- Modal Novo Cliente -->
+    <div class="modal" id="modal-novo-cliente">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">➕ Novo Cliente</div>
+                <button class="modal-close" onclick="closeModal('modal-novo-cliente')">✕</button>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Nome da Empresa</label>
+                    <input type="text" class="form-control" id="nc-nome" placeholder="Ex: Acme Corp">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Segmento</label>
+                    <select class="form-control" id="nc-seg">
+                        <option>Tecnologia</option>
+                        <option>Financeiro</option>
+                        <option>Varejo</option>
+                        <option>Saúde</option>
+                        <option>Logística</option>
+                        <option>Educação</option>
+                        <option>Indústria</option>
+                        <option>Outro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Contato Principal</label>
+                    <input type="text" class="form-control" id="nc-contato" placeholder="Nome do responsável">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">E-mail</label>
+                    <input type="email" class="form-control" id="nc-email" placeholder="email@empresa.com">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Telefone</label>
+                    <input type="text" class="form-control" id="nc-tel" placeholder="(11) 99999-9999">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cidade</label>
+                    <input type="text" class="form-control" id="nc-cidade" placeholder="São Paulo">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-control" id="nc-status">
+                        <option value="lead">Lead</option>
+                        <option value="ativo">Ativo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">MRR (R$)</label>
+                    <input type="number" class="form-control" id="nc-mrr" placeholder="0" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-novo-cliente')">Cancelar</button>
+                <button class="btn btn-primary" onclick="salvarCliente()">Adicionar Cliente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detail -->
+    <div class="modal" id="modal-detalhe">
+        <div class="modal-box" style="max-width:580px">
+            <div class="modal-header">
+                <div class="modal-title" id="detalhe-titulo">—</div>
+                <button class="modal-close" onclick="closeModal('modal-detalhe')">✕</button>
+            </div>
+            <div id="detalhe-body"></div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw new Error('unauth');
+        document.getElementById('sidebar-root').innerHTML = renderSidebarHTML('clientes');
+        document.getElementById('ai-chat-root').innerHTML = renderAIChatHTML();
+        initSidebar();
+
+        // Hide new client btn for clientes role
+        if (Session.role === 'cliente') {
+            document.getElementById('page-actions-root').style.display = 'none';
+        }
+
+        let allClientes = Data.getClientes();
+
+        // Populate segments filter
+        const segs = [...new Set(allClientes.map(c => c.segmento))].sort();
+        const segFilter = document.getElementById('filter-seg');
+        segs.forEach(s => segFilter.innerHTML += `<option value="${s}">${s}</option>`);
+
+        function renderTable(list) {
+            const tbody = document.getElementById('clientes-tbody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔍</div><div>Nenhum cliente encontrado</div></div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(c => {
+                const stars = c.satisfacao ? '⭐'.repeat(Math.round(c.satisfacao)) : '—';
+                return `<tr style="cursor:pointer" onclick="verDetalhe('${c.id}')">
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="avatar">${initials(c.nome)}</div>
+              <div>
+                <div style="font-weight:600">${c.nome}</div>
+                <div style="font-size:.72rem;color:var(--text-muted)">${c.contato}</div>
+              </div>
+            </div>
+          </td>
+          <td><span style="font-size:.82rem">${c.segmento}</span></td>
+          <td>${statusBadge(c.status)}</td>
+          <td><span style="font-size:.78rem;color:var(--text-secondary)">${c.servicos.join(', ') || '—'}</span></td>
+          <td style="font-weight:600">${c.mrr > 0 ? formatCurrency(c.mrr) : '—'}</td>
+          <td><span class="stars" title="${c.satisfacao || '—'}/5">${stars}</span></td>
+          <td style="font-size:.8rem;color:var(--text-secondary)">${formatDate(c.desde)}</td>
+          <td><button class="btn-icon btn-sm" onclick="event.stopPropagation();verDetalhe('${c.id}')">👁</button></td>
+        </tr>`;
+            }).join('');
+        }
+
+        function filterAndRender() {
+            const q = document.getElementById('search').value.toLowerCase();
+            const st = document.getElementById('filter-status').value;
+            const sg = document.getElementById('filter-seg').value;
+            allClientes = Data.getClientes();
+            let list = allClientes;
+            if (q) list = list.filter(c => c.nome.toLowerCase().includes(q) || c.contato.toLowerCase().includes(q) || c.email.toLowerCase().includes(q));
+            if (st) list = list.filter(c => c.status === st);
+            if (sg) list = list.filter(c => c.segmento === sg);
+            renderTable(list);
+        }
+
+        document.getElementById('search').addEventListener('input', filterAndRender);
+        document.getElementById('filter-status').addEventListener('change', filterAndRender);
+        document.getElementById('filter-seg').addEventListener('change', filterAndRender);
+        filterAndRender();
+
+        function verDetalhe(id) {
+            const c = Data.getCliente(id);
+            if (!c) return;
+            document.getElementById('detalhe-titulo').textContent = c.nome;
+            const projetos = Data.getProjetos().filter(p => p.clienteId === id);
+            document.getElementById('detalhe-body').innerHTML = `
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+          ${statusBadge(c.status)}
+          <span style="font-size:.8rem;color:var(--text-muted)">${c.segmento} · ${c.cidade}</span>
+        </div>
+        <div class="stat-pair"><span class="stat-key">Contato</span><span class="stat-val">${c.contato}</span></div>
+        <div class="stat-pair"><span class="stat-key">E-mail</span><span class="stat-val">${c.email}</span></div>
+        <div class="stat-pair"><span class="stat-key">Telefone</span><span class="stat-val">${c.telefone}</span></div>
+        <div class="stat-pair"><span class="stat-key">MRR</span><span class="stat-val">${c.mrr > 0 ? formatCurrency(c.mrr) : '—'}</span></div>
+        <div class="stat-pair"><span class="stat-key">Satisfação</span><span class="stat-val">${c.satisfacao ? c.satisfacao + '/5' : '—'}</span></div>
+        <div class="stat-pair"><span class="stat-key">Cliente desde</span><span class="stat-val">${formatDate(c.desde)}</span></div>
+        <div class="stat-pair"><span class="stat-key">Serviços</span><span class="stat-val">${c.servicos.join(', ') || '—'}</span></div>
+
+        <div style="margin:1.25rem 0 .5rem;font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Projetos</div>
+        ${projetos.length ? projetos.map(p => `<div class="stat-pair"><span class="stat-key">${p.titulo}</span>${statusBadge(p.status)}</div>`).join('') : '<div style="color:var(--text-muted);font-size:.82rem">Nenhum projeto</div>'}
+
+        <div style="margin:1.25rem 0 .5rem;font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Histórico</div>
+        ${c.historico.slice(0, 4).map(h => {
+                const icons = { reuniao: '🤝', email: '✉️', call: '📞' };
+                return `<div class="stat-pair"><div style="display:flex;gap:8px;align-items:center"><span>${icons[h.tipo] || '📌'}</span><span style="font-size:.82rem">${h.desc}</span></div><span style="font-size:.72rem;color:var(--text-muted)">${timeAgo(h.data)}</span></div>`;
+            }).join('') || '<div style="color:var(--text-muted);font-size:.82rem">Sem histórico</div>'}
+      `;
+            openModal('modal-detalhe');
+        }
+
+        function salvarCliente() {
+            const nome = document.getElementById('nc-nome').value.trim();
+            const contato = document.getElementById('nc-contato').value.trim();
+            if (!nome || !contato) return showToast('Preencha nome e contato!', 'warning');
+            Data.addCliente({
+                nome,
+                segmento: document.getElementById('nc-seg').value,
+                contato,
+                email: document.getElementById('nc-email').value,
+                telefone: document.getElementById('nc-tel').value,
+                cidade: document.getElementById('nc-cidade').value,
+                status: document.getElementById('nc-status').value,
+                mrr: Number(document.getElementById('nc-mrr').value) || 0,
+                servicos: [],
+                desde: new Date().toISOString().split('T')[0],
+                satisfacao: null,
+            });
+            closeModal('modal-novo-cliente');
+            filterAndRender();
+            showToast(`${nome} adicionado!`, 'success');
+        }
+
+        initAIChat('operador');
+    </script>
+</body>
+
+</html>

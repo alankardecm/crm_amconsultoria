@@ -1,0 +1,19 @@
+{
+  "name": "nexus-ai-crm",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CRM para consultoria em IA, BI e Dashboards com backend OpenAI e exportacao PDF/DOCX",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "docx": "^9.5.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "openai": "^4.104.0",
+    "pdfkit": "^0.17.2"
+  }
+}

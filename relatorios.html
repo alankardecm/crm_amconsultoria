@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Relatórios</title>
+    <link rel="stylesheet" href="css/index.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-root"></div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle">☰</button>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">📈 Relatórios & BI</div>
+                    <div class="page-subtitle">Análises de desempenho, clientes e serviços</div>
+                </div>
+                <div class="page-actions">
+                    <select class="filter-select" id="filter-periodo" style="height:36px">
+                        <option value="7">Últimos 7 meses</option>
+                        <option value="6" selected>Últimos 6 meses</option>
+                        <option value="3">Últimos 3 meses</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="exportarRelatorio()">⬇️ Exportar PDF</button>
+                </div>
+            </div>
+
+            <!-- Top KPIs -->
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin-bottom:2rem"
+                id="report-kpis"></div>
+
+            <!-- Charts row 1 -->
+            <div class="grid-2 mb-3">
+                <div class="card">
+                    <div class="card-title">📈 Evolução do MRR</div>
+                    <div class="chart-wrap-lg"><canvas id="chart-mrr-trend"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">🥧 Composição da Receita por Serviço</div>
+                    <div class="chart-wrap-lg"><canvas id="chart-receita-servico"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Charts row 2 -->
+            <div class="grid-2 mb-3">
+                <div class="card">
+                    <div class="card-title">📊 Projetos por Status</div>
+                    <div class="chart-wrap"><canvas id="chart-proj-status"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">👥 Clientes por Segmento</div>
+                    <div class="chart-wrap"><canvas id="chart-seg"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Charts row 3 -->
+            <div class="grid-2 mb-3">
+                <div class="card">
+                    <div class="card-title">⭐ Satisfação por Cliente</div>
+                    <div class="chart-wrap-lg"><canvas id="chart-satisfacao"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">💰 MRR por Cliente</div>
+                    <div class="chart-wrap-lg"><canvas id="chart-mrr-cliente"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Table: resumo clientes -->
+            <div class="card">
+                <div class="card-title">📋 Resumo por Cliente</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Status</th>
+                                <th>MRR</th>
+                                <th>Projetos</th>
+                                <th>Tickets</th>
+                                <th>Satisfação</th>
+                                <th>Tempo de Casa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resumo-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <div id="ai-chat-root"></div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw new Error('unauth');
+        document.getElementById('sidebar-root').innerHTML = renderSidebarHTML('relatorios');
+        document.getElementById('ai-chat-root').innerHTML = renderAIChatHTML();
+        initSidebar();
+
+        const kpis = Data.getKPIs();
+        const clientes = Data.getClientes();
+        const projetos = Data.getProjetos();
+        const tickets = Data.getTickets();
+
+        // Chart defaults
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(255,255,255,0.07)';
+        Chart.defaults.font.family = 'Inter, sans-serif';
+
+        // KPIs
+        const mrrGrow = (((kpis.mrr - kpis.mrrAnterior) / kpis.mrrAnterior) * 100).toFixed(1);
+        const reportKpis = [
+            { label: 'MRR Atual', value: formatCurrency(kpis.mrr), color: 'linear-gradient(90deg,var(--accent-cyan),var(--accent-violet))' },
+            { label: 'Crescimento MRR', value: '+' + mrrGrow + '%', color: 'linear-gradient(90deg,var(--accent-green),var(--accent-cyan))' },
+            { label: 'Clientes Ativos', value: kpis.clientesAtivos, color: 'linear-gradient(90deg,var(--accent-violet),var(--accent-pink))' },
+            { label: 'Retenção', value: kpis.taxaRetencao + '%', color: 'linear-gradient(90deg,var(--accent-yellow),var(--accent-green))' },
+            { label: 'NPS / Satisfação', value: kpis.satisfacaoMedia + '/5', color: 'linear-gradient(90deg,var(--accent-pink),var(--accent-violet))' },
+        ];
+        const kpiEl = document.getElementById('report-kpis');
+        reportKpis.forEach(k => kpiEl.innerHTML += `
+      <div class="kpi-card" style="--kpi-color:${k.color}">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+      </div>`);
+
+        let chartInstances = {};
+
+        function buildCharts(n) {
+            // Destroy existing
+            Object.values(chartInstances).forEach(c => c.destroy());
+            chartInstances = {};
+
+            const labels = kpis.meses.slice(-n);
+            const data = kpis.receitaMensal.slice(-n);
+
+            // MRR Trend
+            chartInstances.mrr = new Chart(document.getElementById('chart-mrr-trend'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'MRR (R$)',
+                            data,
+                            borderColor: '#00d4ff',
+                            backgroundColor: 'rgba(0,212,255,.07)',
+                            fill: true, tension: .4, pointRadius: 5,
+                            pointBackgroundColor: '#00d4ff',
+                        },
+                        {
+                            label: 'Meta',
+                            data: data.map(() => 35000),
+                            borderColor: 'rgba(124,58,237,.5)',
+                            borderDash: [6, 4],
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' } },
+                        y: { ticks: { color: '#94a3b8', callback: v => 'R$' + (v / 1000).toFixed(0) + 'k' } }
+                    }
+                }
+            });
+
+            // Receita por serviço
+            const svc = kpis.receitaPorServico;
+            chartInstances.servico = new Chart(document.getElementById('chart-receita-servico'), {
+                type: 'polarArea',
+                data: {
+                    labels: Object.keys(svc),
+                    datasets: [{ data: Object.values(svc), backgroundColor: ['rgba(0,212,255,.6)', 'rgba(124,58,237,.6)', 'rgba(16,185,129,.6)', 'rgba(245,158,11,.6)', 'rgba(244,114,182,.6)'], borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 10 } } }
+                }
+            });
+
+            // Projetos por status
+            const statusCounts = { backlog: 0, em_progresso: 0, revisao: 0, concluido: 0 };
+            projetos.forEach(p => { if (statusCounts[p.status] !== undefined) statusCounts[p.status]++; });
+            chartInstances.projStatus = new Chart(document.getElementById('chart-proj-status'), {
+                type: 'bar',
+                data: {
+                    labels: ['Backlog', 'Em Progresso', 'Revisão', 'Concluído'],
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['rgba(255,255,255,.08)', 'rgba(0,212,255,.5)', 'rgba(245,158,11,.5)', 'rgba(16,185,129,.5)'],
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8', stepSize: 1 } } }
+                }
+            });
+
+            // Clientes por segmento
+            const segCounts = {};
+            clientes.forEach(c => { segCounts[c.segmento] = (segCounts[c.segmento] || 0) + 1; });
+            chartInstances.seg = new Chart(document.getElementById('chart-seg'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(segCounts),
+                    datasets: [{
+                        data: Object.values(segCounts),
+                        backgroundColor: ['#00d4ff', '#7c3aed', '#10b981', '#f59e0b', '#f472b6', '#ef4444'],
+                        borderWidth: 0, hoverOffset: 6,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 12 } } }
+                }
+            });
+
+            // Satisfação por cliente
+            const satisfClientes = clientes.filter(c => c.satisfacao);
+            chartInstances.satisf = new Chart(document.getElementById('chart-satisfacao'), {
+                type: 'bar',
+                data: {
+                    labels: satisfClientes.map(c => c.nome.split(' ').slice(0, 1).join('')),
+                    datasets: [{
+                        label: 'Satisfação',
+                        data: satisfClientes.map(c => c.satisfacao),
+                        backgroundColor: satisfClientes.map(c => c.satisfacao >= 4.5 ? 'rgba(16,185,129,.6)' : c.satisfacao >= 3.5 ? 'rgba(245,158,11,.6)' : 'rgba(239,68,68,.6)'),
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { color: '#94a3b8' } }, y: { min: 0, max: 5, ticks: { color: '#94a3b8', stepSize: 1 } } }
+                }
+            });
+
+            // MRR por cliente
+            const ativos = clientes.filter(c => c.mrr > 0);
+            chartInstances.mrrCliente = new Chart(document.getElementById('chart-mrr-cliente'), {
+                type: 'bar',
+                indexAxis: 'y',
+                data: {
+                    labels: ativos.map(c => c.nome.split(' ').slice(0, 2).join(' ')),
+                    datasets: [{
+                        data: ativos.map(c => c.mrr),
+                        backgroundColor: 'rgba(0,212,255,.4)',
+                        borderLeft: '3px solid #00d4ff',
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', callback: v => 'R$' + (v / 1000).toFixed(0) + 'k' } },
+                        y: { ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        buildCharts(6);
+
+        document.getElementById('filter-periodo').addEventListener('change', function () {
+            buildCharts(Number(this.value));
+        });
+
+        // Resumo table
+        const tbody = document.getElementById('resumo-tbody');
+        clientes.forEach(c => {
+            const projs = projetos.filter(p => p.clienteId === c.id);
+            const tks = tickets.filter(t => t.clienteId === c.id);
+            const desde = new Date(c.desde);
+            const meses = Math.floor((new Date() - desde) / (30 * 86400000));
+            tbody.innerHTML += `<tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="avatar">${initials(c.nome)}</div>
+            <div><div style="font-weight:600">${c.nome}</div><div style="font-size:.72rem;color:var(--text-muted)">${c.segmento}</div></div>
+          </div>
+        </td>
+        <td>${statusBadge(c.status)}</td>
+        <td style="font-weight:600">${c.mrr > 0 ? formatCurrency(c.mrr) : '—'}</td>
+        <td>${projs.length} <span style="color:var(--text-muted);font-size:.75rem">(${projs.filter(p => p.status === 'concluido').length} concl.)</span></td>
+        <td>${tks.length} <span style="color:var(--text-muted);font-size:.75rem">(${tks.filter(t => t.status === 'aberto').length} abertos)</span></td>
+        <td>${c.satisfacao ? `<span class="stars">${'⭐'.repeat(Math.round(c.satisfacao))}</span> ${c.satisfacao}` : '—'}</td>
+        <td style="font-size:.82rem">${meses} ${meses === 1 ? 'mês' : 'meses'}</td>
+      </tr>`;
+        });
+
+        function exportarRelatorio() {
+            showToast('📄 Gerando relatório PDF... (demonstração)', 'info', 3000);
+            setTimeout(() => showToast('✅ Relatório disponível no seu e-mail!', 'success'), 2500);
+        }
+
+        initAIChat(Session.role === 'dono' ? 'dono' : 'operador');
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Operações</title>
+    <link rel="stylesheet" href="css/index.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-root"></div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle">☰</button>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">🛠️ Operações</div>
+                    <div class="page-subtitle">Gestão de demandas, tickets e tarefas do time</div>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="openModal('modal-novo-ticket')">+ Ticket</button>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('modal-checkin')">⏱️ Check-in</button>
+                </div>
+            </div>
+
+            <!-- Mini KPIs -->
+            <div class="kpi-grid" id="mini-kpis" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
+            </div>
+
+            <!-- Kanban de tickets -->
+            <div class="card mb-3">
+                <div class="card-title">🎫 Board de Tickets / Demandas</div>
+                <div class="kanban-board" id="ticket-board"></div>
+            </div>
+
+            <!-- Projetos em andamento -->
+            <div class="card">
+                <div class="card-title">📁 Projetos Ativos</div>
+                <div id="projetos-list"></div>
+            </div>
+        </main>
+
+        <div id="ai-chat-root"></div>
+    </div>
+
+    <!-- Modal Novo Ticket -->
+    <div class="modal" id="modal-novo-ticket">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">🎫 Novo Ticket</div>
+                <button class="modal-close" onclick="closeModal('modal-novo-ticket')">✕</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Título</label>
+                <input type="text" class="form-control" id="tk-titulo" placeholder="Descreva o problema ou demanda...">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Cliente</label>
+                    <select class="form-control" id="tk-cliente"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-control" id="tk-tipo">
+                        <option value="bug">Bug</option>
+                        <option value="feature">Feature</option>
+                        <option value="suporte">Suporte</option>
+                        <option value="analise">Análise</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Prioridade</label>
+                    <select class="form-control" id="tk-prioridade">
+                        <option value="baixa">Baixa</option>
+                        <option value="media" selected>Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="critica">Crítica</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Responsável</label>
+                    <select class="form-control" id="tk-responsavel"></select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descrição</label>
+                <textarea class="form-control" id="tk-desc" placeholder="Detalhes adicionais..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-novo-ticket')">Cancelar</button>
+                <button class="btn btn-primary" onclick="salvarTicket()">Criar Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Check-in -->
+    <div class="modal" id="modal-checkin">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">⏱️ Registro de Horas</div>
+                <button class="modal-close" onclick="closeModal('modal-checkin')">✕</button>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Projeto</label>
+                    <select class="form-control" id="ci-projeto"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Horas</label>
+                    <input type="number" class="form-control" id="ci-horas" placeholder="Ex: 3.5" step="0.5" min="0.5">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Atividade realizada</label>
+                <textarea class="form-control" id="ci-atividade" placeholder="Descreva o que foi feito..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-checkin')">Cancelar</button>
+                <button class="btn btn-primary" onclick="salvarCheckin()">Registrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw new Error('unauth');
+        document.getElementById('sidebar-root').innerHTML = renderSidebarHTML('operador');
+        document.getElementById('ai-chat-root').innerHTML = renderAIChatHTML();
+        initSidebar();
+
+        const tickets = Data.getTickets();
+        const projetos = Data.getProjetos();
+        const clientes = Data.getClientes();
+        const operadores = Data.getOperadores();
+
+        // Populate selects
+        const tkCliente = document.getElementById('tk-cliente');
+        clientes.forEach(c => tkCliente.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+        const tkResp = document.getElementById('tk-responsavel');
+        tkResp.innerHTML = '<option value="">Não atribuído</option>';
+        operadores.forEach(o => tkResp.innerHTML += `<option value="${o.nome}">${o.nome}</option>`);
+        const ciProjeto = document.getElementById('ci-projeto');
+        projetos.filter(p => p.status !== 'concluido').forEach(p => {
+            const c = clientes.find(x => x.id === p.clienteId);
+            ciProjeto.innerHTML += `<option value="${p.id}">${p.titulo} — ${c?.nome || ''}</option>`;
+        });
+
+        // Mini KPIs
+        const abertos = tickets.filter(t => t.status === 'aberto').length;
+        const emAndamento = tickets.filter(t => t.status === 'em_andamento').length;
+        const criticos = tickets.filter(t => t.prioridade === 'critica' && t.status !== 'resolvido').length;
+        const projetosAtivos = projetos.filter(p => p.status === 'em_progresso' || p.status === 'revisao').length;
+
+        const miniData = [
+            { label: 'Tickets Abertos', value: abertos, icon: '🔓', color: abertos > 3 ? 'var(--accent-red)' : 'var(--accent-yellow)' },
+            { label: 'Em Andamento', value: emAndamento, icon: '⚙️', color: 'var(--accent-cyan)' },
+            { label: 'Prioridade Crítica', value: criticos, icon: '🔴', color: criticos > 0 ? 'var(--accent-red)' : 'var(--accent-green)' },
+            { label: 'Projetos Ativos', value: projetosAtivos, icon: '📁', color: 'var(--accent-violet)' },
+        ];
+        const miniGrid = document.getElementById('mini-kpis');
+        miniData.forEach(k => miniGrid.innerHTML += `
+      <div class="kpi-card" style="--kpi-color:${k.color}">
+        <div class="kpi-icon">${k.icon}</div>
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+      </div>`);
+
+        // Kanban Board
+        const COLS = [
+            { id: 'aberto', label: 'Aberto', color: 'var(--accent-red)' },
+            { id: 'em_andamento', label: 'Em Andamento', color: 'var(--accent-cyan)' },
+            { id: 'resolvido', label: 'Resolvido', color: 'var(--accent-green)' },
+        ];
+
+        const board = document.getElementById('ticket-board');
+
+        function renderBoard() {
+            board.innerHTML = '';
+            const currentTickets = Data.getTickets();
+            COLS.forEach(col => {
+                const colTickets = currentTickets.filter(t => t.status === col.id);
+                const colEl = document.createElement('div');
+                colEl.className = 'kanban-col';
+                colEl.dataset.col = col.id;
+                colEl.innerHTML = `
+          <div class="kanban-col-header" style="color:${col.color}">
+            ${col.label} <span class="kanban-count">${colTickets.length}</span>
+          </div>
+          <div class="kanban-cards" id="col-${col.id}"></div>`;
+                board.appendChild(colEl);
+
+                const cardsEl = colEl.querySelector('.kanban-cards');
+                colTickets.forEach(t => {
+                    const cliente = clientes.find(c => c.id === t.clienteId);
+                    const card = document.createElement('div');
+                    card.className = 'kanban-card';
+                    card.draggable = true;
+                    card.dataset.id = t.id;
+                    card.innerHTML = `
+            <div class="kcard-title">${t.titulo}</div>
+            <div class="kcard-meta">
+              ${prioridadeBadge(t.prioridade)}
+              <span class="badge badge-muted">${t.tipo}</span>
+            </div>
+            <div class="kcard-client" style="margin-top:.5rem;color:var(--text-secondary);font-size:.75rem">
+              👤 ${cliente?.nome || '—'} · 📅 ${formatDate(t.criado)}
+            </div>
+            ${t.responsavel ? `<div style="font-size:.72rem;color:var(--text-muted);margin-top:.3rem">→ ${t.responsavel}</div>` : ''}`;
+
+                    card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', t.id); card.classList.add('dragging'); });
+                    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+                    cardsEl.appendChild(card);
+                });
+
+                // Drop events
+                colEl.addEventListener('dragover', e => { e.preventDefault(); colEl.classList.add('drag-over'); });
+                colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+                colEl.addEventListener('drop', e => {
+                    e.preventDefault();
+                    colEl.classList.remove('drag-over');
+                    const id = e.dataTransfer.getData('text/plain');
+                    Data.updateTicket(id, { status: col.id });
+                    renderBoard();
+                    showToast(`Ticket movido para "${col.label}"`, 'success');
+                });
+            });
+        }
+        renderBoard();
+
+        // Projetos ativos
+        const projetosList = document.getElementById('projetos-list');
+        projetos.filter(p => p.status !== 'concluido').forEach(p => {
+            const c = clientes.find(x => x.id === p.clienteId);
+            projetosList.innerHTML += `
+        <div class="stat-pair" style="flex-direction:column;align-items:flex-start;gap:.4rem;padding:.9rem 0">
+          <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+            <div>
+              <div style="font-weight:600;font-size:.9rem">${p.titulo}</div>
+              <div style="font-size:.75rem;color:var(--text-muted)">${c?.nome || '—'} · Prazo: ${formatDate(p.prazo)} · ${p.responsavel}</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              ${statusBadge(p.status)}
+              ${prioridadeBadge(p.prioridade)}
+            </div>
+          </div>
+          <div style="width:100%">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:.72rem;color:var(--text-muted)">Progresso</span>
+              <span style="font-size:.72rem;font-weight:600">${p.progresso}%</span>
+            </div>
+            <div class="progress-wrap"><div class="progress-fill" style="width:${p.progresso}%"></div></div>
+          </div>
+        </div>`;
+        });
+
+        function salvarTicket() {
+            const titulo = document.getElementById('tk-titulo').value.trim();
+            if (!titulo) return showToast('Preencha o título!', 'warning');
+            Data.addTicket({
+                titulo,
+                clienteId: document.getElementById('tk-cliente').value,
+                tipo: document.getElementById('tk-tipo').value,
+                prioridade: document.getElementById('tk-prioridade').value,
+                responsavel: document.getElementById('tk-responsavel').value,
+                descricao: document.getElementById('tk-desc').value,
+                status: 'aberto'
+            });
+            closeModal('modal-novo-ticket');
+            renderBoard();
+            showToast('Ticket criado!', 'success');
+        }
+
+        function salvarCheckin() {
+            const horas = document.getElementById('ci-horas').value;
+            if (!horas) return showToast('Informe as horas!', 'warning');
+            closeModal('modal-checkin');
+            showToast(`✅ ${horas}h registradas com sucesso!`, 'success');
+        }
+
+        initAIChat('operador');
+    </script>
+</body>
+
+</html>

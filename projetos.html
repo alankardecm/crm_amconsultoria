@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Projetos</title>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-root"></div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle">☰</button>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">📁 Projetos & Demandas</div>
+                    <div class="page-subtitle">Board de projetos por status — arraste para mover</div>
+                </div>
+                <div class="page-actions">
+                    <select class="filter-select" id="filter-cliente" style="height:36px">
+                        <option value="">Todos os clientes</option>
+                    </select>
+                    <select class="filter-select" id="filter-tipo" style="height:36px">
+                        <option value="">Todos os tipos</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('modal-novo-projeto')"
+                        id="btn-novo-proj">+ Novo Projeto</button>
+                </div>
+            </div>
+
+            <div class="kanban-board" id="proj-board"></div>
+        </main>
+
+        <div id="ai-chat-root"></div>
+    </div>
+
+    <!-- Modal Novo Projeto -->
+    <div class="modal" id="modal-novo-projeto">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">📁 Novo Projeto</div>
+                <button class="modal-close" onclick="closeModal('modal-novo-projeto')">✕</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Título do Projeto</label>
+                <input type="text" class="form-control" id="np-titulo" placeholder="Ex: Dashboard Executivo — Empresa">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Cliente</label>
+                    <select class="form-control" id="np-cliente"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo de Serviço</label>
+                    <select class="form-control" id="np-tipo">
+                        <option>BI & Dashboards</option>
+                        <option>Machine Learning</option>
+                        <option>Análise de Dados</option>
+                        <option>ETL & Engenharia de Dados</option>
+                        <option>Automação IA</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Responsável</label>
+                    <select class="form-control" id="np-responsavel"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Prioridade</label>
+                    <select class="form-control" id="np-prioridade">
+                        <option value="baixa">Baixa</option>
+                        <option value="media" selected>Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="critica">Crítica</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Prazo de Entrega</label>
+                <input type="date" class="form-control" id="np-prazo">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descrição</label>
+                <textarea class="form-control" id="np-desc" placeholder="Objetivo e escopo do projeto..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-novo-projeto')">Cancelar</button>
+                <button class="btn btn-primary" onclick="salvarProjeto()">Criar Projeto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal detalhe projeto -->
+    <div class="modal" id="modal-proj-detalhe">
+        <div class="modal-box" style="max-width:560px">
+            <div class="modal-header">
+                <div class="modal-title" id="pd-titulo">—</div>
+                <button class="modal-close" onclick="closeModal('modal-proj-detalhe')">✕</button>
+            </div>
+            <div id="pd-body"></div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw new Error('unauth');
+        document.getElementById('sidebar-root').innerHTML = renderSidebarHTML('projetos');
+        document.getElementById('ai-chat-root').innerHTML = renderAIChatHTML();
+        initSidebar();
+
+        if (Session.role === 'cliente') document.getElementById('btn-novo-proj').style.display = 'none';
+
+        const clientes = Data.getClientes();
+        const operadores = Data.getOperadores();
+
+        // Populate selects
+        const npCliente = document.getElementById('np-cliente');
+        clientes.forEach(c => npCliente.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+        const npResp = document.getElementById('np-responsavel');
+        operadores.forEach(o => npResp.innerHTML += `<option value="${o.nome}">${o.nome}</option>`);
+        const fcCliente = document.getElementById('filter-cliente');
+        clientes.forEach(c => fcCliente.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+        const tipos = [...new Set(Data.getProjetos().map(p => p.tipo))].sort();
+        const ftTipo = document.getElementById('filter-tipo');
+        tipos.forEach(t => ftTipo.innerHTML += `<option value="${t}">${t}</option>`);
+
+        const COL_CONFIG = [
+            { id: 'backlog', label: '📋 Backlog', color: 'var(--text-muted)' },
+            { id: 'em_progresso', label: '⚙️ Em Progresso', color: 'var(--accent-cyan)' },
+            { id: 'revisao', label: '🔍 Revisão', color: 'var(--accent-yellow)' },
+            { id: 'concluido', label: '✅ Concluído', color: 'var(--accent-green)' },
+        ];
+
+        function getFiltered() {
+            const fc = document.getElementById('filter-cliente').value;
+            const ft = document.getElementById('filter-tipo').value;
+            let list = Data.getProjetos();
+            if (fc) list = list.filter(p => p.clienteId === fc);
+            if (ft) list = list.filter(p => p.tipo === ft);
+            return list;
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('proj-board');
+            board.innerHTML = '';
+            const projetos = getFiltered();
+
+            COL_CONFIG.forEach(col => {
+                const colProjs = projetos.filter(p => p.status === col.id);
+                const colEl = document.createElement('div');
+                colEl.className = 'kanban-col';
+                colEl.dataset.col = col.id;
+                colEl.innerHTML = `
+          <div class="kanban-col-header" style="color:${col.color}">
+            ${col.label} <span class="kanban-count">${colProjs.length}</span>
+          </div>
+          <div class="kanban-cards" id="pcol-${col.id}"></div>`;
+                board.appendChild(colEl);
+
+                const cardsEl = colEl.querySelector('.kanban-cards');
+                if (colProjs.length === 0) {
+                    cardsEl.innerHTML = '<div style="color:var(--text-muted);font-size:.78rem;text-align:center;padding:.5rem">Arraste aqui</div>';
+                }
+                colProjs.forEach(p => {
+                    const cliente = clientes.find(c => c.id === p.clienteId);
+                    const card = document.createElement('div');
+                    card.className = 'kanban-card';
+                    card.draggable = true;
+                    card.dataset.id = p.id;
+                    card.innerHTML = `
+            <div class="kcard-title">${p.titulo}</div>
+            <div class="kcard-meta" style="margin-top:.4rem">
+              ${prioridadeBadge(p.prioridade)}
+              <span class="badge badge-muted">${p.tipo}</span>
+            </div>
+            <div style="font-size:.75rem;color:var(--text-secondary);margin-top:.5rem">
+              🏢 ${cliente?.nome || '—'} · 👤 ${p.responsavel || '—'}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin:.25rem 0 .5rem">📅 Prazo: ${formatDate(p.prazo)}</div>
+            <div class="kcard-progress">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="font-size:.68rem;color:var(--text-muted)">Progresso</span>
+                <span style="font-size:.68rem;font-weight:700">${p.progresso}%</span>
+              </div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${p.progresso}%"></div></div>
+            </div>`;
+
+                    card.addEventListener('click', () => verDetalhe(p.id));
+                    card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', p.id); card.classList.add('dragging'); });
+                    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+                    cardsEl.appendChild(card);
+                });
+
+                colEl.addEventListener('dragover', e => { e.preventDefault(); colEl.classList.add('drag-over'); });
+                colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+                colEl.addEventListener('drop', e => {
+                    e.preventDefault();
+                    colEl.classList.remove('drag-over');
+                    const id = e.dataTransfer.getData('text/plain');
+                    Data.updateProjeto(id, { status: col.id });
+                    renderBoard();
+                    showToast('Projeto movido!', 'success');
+                });
+            });
+        }
+
+        document.getElementById('filter-cliente').addEventListener('change', renderBoard);
+        document.getElementById('filter-tipo').addEventListener('change', renderBoard);
+        renderBoard();
+
+        function verDetalhe(id) {
+            const p = Data.getProjeto(id);
+            if (!p) return;
+            const c = clientes.find(x => x.id === p.clienteId);
+            document.getElementById('pd-titulo').textContent = p.titulo;
+            const done = p.tarefas.filter(t => t.done).length;
+            document.getElementById('pd-body').innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
+          ${statusBadge(p.status)} ${prioridadeBadge(p.prioridade)}
+          <span class="badge badge-muted">${p.tipo}</span>
+        </div>
+        <div class="stat-pair"><span class="stat-key">Cliente</span><span class="stat-val">${c?.nome || '—'}</span></div>
+        <div class="stat-pair"><span class="stat-key">Responsável</span><span class="stat-val">${p.responsavel || '—'}</span></div>
+        <div class="stat-pair"><span class="stat-key">Prazo</span><span class="stat-val">${formatDate(p.prazo)}</span></div>
+        <div class="stat-pair"><span class="stat-key">Progresso</span><span class="stat-val">${p.progresso}%</span></div>
+        <p style="font-size:.85rem;color:var(--text-secondary);margin:.75rem 0">${p.descricao}</p>
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin:.75rem 0 .5rem">Tarefas (${done}/${p.tarefas.length})</div>
+        ${p.tarefas.map(t => `
+          <div style="display:flex;align-items:center;gap:8px;padding:.35rem 0;font-size:.85rem">
+            <span>${t.done ? '✅' : '⬜'}</span>
+            <span style="color:${t.done ? 'var(--text-muted)' : 'var(--text-primary)'}${t.done ? ';text-decoration:line-through' : ''}">${t.titulo}</span>
+          </div>`).join('')}
+      `;
+            openModal('modal-proj-detalhe');
+        }
+
+        function salvarProjeto() {
+            const titulo = document.getElementById('np-titulo').value.trim();
+            if (!titulo) return showToast('Informe o título!', 'warning');
+            Data.addProjeto({
+                titulo,
+                clienteId: document.getElementById('np-cliente').value,
+                tipo: document.getElementById('np-tipo').value,
+                responsavel: document.getElementById('np-responsavel').value,
+                prioridade: document.getElementById('np-prioridade').value,
+                prazo: document.getElementById('np-prazo').value || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                descricao: document.getElementById('np-desc').value,
+                status: 'backlog',
+            });
+            closeModal('modal-novo-projeto');
+            renderBoard();
+            showToast('Projeto criado!', 'success');
+        }
+
+        initAIChat('operador');
+    </script>
+</body>
+
+</html>

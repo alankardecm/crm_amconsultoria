@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus AI — Login</title>
+  <meta name="description" content="CRM para consultoria de IA, Análise de Dados, BI e Dashboards. Acesse como Dono, Operador ou Cliente.">
+  <link rel="stylesheet" href="css/index.css">
+  <style>
+    .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .particle {
+      position: absolute; border-radius: 50%;
+      background: var(--accent-cyan); opacity: 0.08;
+      animation: float linear infinite;
+    }
+    @keyframes float {
+      from { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 0.08; }
+      to   { transform: translateY(-10vh) scale(1); opacity: 0; }
+    }
+    .grid-lines {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    .login-features {
+      display: flex; flex-direction: column; gap: .6rem;
+      margin-bottom: 1.75rem;
+    }
+    .feature-item {
+      display: flex; align-items: center; gap: 10px;
+      font-size: .8rem; color: var(--text-secondary);
+    }
+    .feature-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      flex-shrink: 0;
+    }
+    .btn-enter {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      color: #fff; border: none;
+      padding: .9rem;
+      border-radius: var(--radius-md);
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      margin-top: .5rem;
+    }
+    .btn-enter:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(124,58,237,.35); }
+    .btn-enter:disabled { opacity: .5; cursor: not-allowed; }
+    .form-field { margin-bottom: 1rem; }
+    .login-divider { text-align: center; color: var(--text-muted); font-size: .75rem; margin: 1rem 0; }
+    .version { text-align: center; margin-top: 1.5rem; font-size: .72rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-bg"></div>
+    <div class="grid-lines"></div>
+    <div class="particles" id="particles"></div>
+
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-icon">N</div>
+        <div class="login-logo-text">
+          <h1>Nexus AI</h1>
+          <p>CRM · BI · Analytics · Automation</p>
+        </div>
+      </div>
+
+      <div class="login-heading">
+        <h2>Bem-vindo de volta 👋</h2>
+        <p>Selecione seu perfil de acesso para continuar</p>
+      </div>
+
+      <!-- Role selector -->
+      <div class="role-grid" id="role-grid">
+        <div class="role-card" data-role="dono" id="role-dono">
+          <span class="role-emoji">👑</span>
+          <div class="role-name">Dono</div>
+          <div class="role-desc">Visão estratégica</div>
+        </div>
+        <div class="role-card" data-role="operador" id="role-operador">
+          <span class="role-emoji">🛠️</span>
+          <div class="role-name">Operador</div>
+          <div class="role-desc">Gestão de projetos</div>
+        </div>
+        <div class="role-card" data-role="cliente" id="role-cliente">
+          <span class="role-emoji">🏢</span>
+          <div class="role-name">Cliente</div>
+          <div class="role-desc">Acompanhar status</div>
+        </div>
+      </div>
+
+      <div class="login-divider">── Dados de acesso ──</div>
+
+      <div class="form-field">
+        <label class="form-label">Nome</label>
+        <input type="text" class="form-control" id="input-nome" placeholder="Seu nome completo" />
+      </div>
+
+      <div class="form-field" id="cliente-select-wrap" style="display:none">
+        <label class="form-label">Empresa (cliente)</label>
+        <select class="form-control" id="input-empresa">
+          <option value="">Selecione a empresa...</option>
+        </select>
+      </div>
+
+      <div class="login-features">
+        <div class="feature-item"><div class="feature-dot"></div>Dashboard com KPIs em tempo real</div>
+        <div class="feature-item"><div class="feature-dot"></div>Agente de IA contextual NEXUS</div>
+        <div class="feature-item"><div class="feature-dot"></div>Kanban de projetos e demandas</div>
+        <div class="feature-item"><div class="feature-dot"></div>BI e relatórios interativos</div>
+      </div>
+
+      <button class="btn-enter" id="btn-enter" disabled>Entrar no sistema</button>
+      <div class="version">Nexus AI CRM v1.0 · Consultoria de Inteligência Artificial</div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script>
+    // Particles
+    const pc = document.getElementById('particles');
+    for (let i = 0; i < 18; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 5 + 3;
+      p.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;animation-duration:${8+Math.random()*12}s;animation-delay:${Math.random()*8}s;background:${Math.random()>.5?'var(--accent-cyan)':'var(--accent-violet)'}`;
+      pc.appendChild(p);
+    }
+
+    // Populate client selector
+    const empresaSelect = document.getElementById('input-empresa');
+    Data.getClientes().forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nome;
+      empresaSelect.appendChild(opt);
+    });
+
+    let selectedRole = null;
+
+    // Role selection
+    document.querySelectorAll('.role-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedRole = card.dataset.role;
+        document.getElementById('cliente-select-wrap').style.display =
+          selectedRole === 'cliente' ? 'block' : 'none';
+        checkForm();
+      });
+    });
+
+    function checkForm() {
+      const nome = document.getElementById('input-nome').value.trim();
+      const ok = nome.length > 1 && selectedRole &&
+        (selectedRole !== 'cliente' || document.getElementById('input-empresa').value);
+      document.getElementById('btn-enter').disabled = !ok;
+    }
+
+    document.getElementById('input-nome').addEventListener('input', checkForm);
+    document.getElementById('input-empresa').addEventListener('change', checkForm);
+
+    document.getElementById('btn-enter').addEventListener('click', () => {
+      const nome = document.getElementById('input-nome').value.trim();
+      const empresaId = document.getElementById('input-empresa').value;
+      const user = { nome, role: selectedRole };
+      if (selectedRole === 'cliente') user.clienteId = empresaId;
+
+      sessionStorage.setItem('nexus_role', selectedRole);
+      sessionStorage.setItem('nexus_user', JSON.stringify(user));
+
+      const dest = selectedRole === 'dono' ? 'dashboard.html' :
+                   selectedRole === 'operador' ? 'operador.html' :
+                   'clientes.html';
+      window.location.href = dest;
+    });
+  </script>
+</body>
+</html>

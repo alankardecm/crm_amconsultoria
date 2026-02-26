@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Dashboard</title>
+    <link rel="stylesheet" href="css/index.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-root"></div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle">☰</button>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title" id="greeting">Bom dia! 👑</div>
+                    <div class="page-subtitle">Visão geral do negócio — <span id="current-date"></span></div>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="Data.reset(); location.reload()">🔄 Resetar
+                        Demo</button>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('modal-nova-meta')">🎯 Nova Meta</button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="kpi-grid" id="kpi-grid"></div>
+
+            <!-- Charts row -->
+            <div class="grid-2 mb-3">
+                <div class="card">
+                    <div class="card-title">📈 Receita Mensal (MRR)</div>
+                    <div class="chart-wrap"><canvas id="chart-mrr"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">🥧 Receita por Serviço</div>
+                    <div class="chart-wrap"><canvas id="chart-servicos"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Pipeline + Clients at risk -->
+            <div class="grid-2 mb-3">
+                <div class="card">
+                    <div class="card-title">🚀 Pipeline Comercial</div>
+                    <div id="pipeline-list"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">⚠️ Clientes em Atenção</div>
+                    <div id="alert-clients"></div>
+                </div>
+            </div>
+
+            <!-- Recent activity -->
+            <div class="card">
+                <div class="card-title">🕒 Atividade Recente</div>
+                <div id="recent-activity"></div>
+            </div>
+        </main>
+
+        <div id="ai-chat-root"></div>
+    </div>
+
+    <!-- Modal Nova Meta -->
+    <div class="modal" id="modal-nova-meta">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">🎯 Definir Nova Meta</div>
+                <button class="modal-close" onclick="closeModal('modal-nova-meta')">✕</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipo de Meta</label>
+                <select class="form-control" id="meta-tipo">
+                    <option>MRR</option>
+                    <option>Novos Clientes</option>
+                    <option>Retenção</option>
+                    <option>NPS</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Valor Alvo</label>
+                <input type="number" class="form-control" id="meta-valor" placeholder="Ex: 50000">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Prazo</label>
+                <input type="date" class="form-control" id="meta-prazo">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-nova-meta')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveMeta()">Salvar Meta</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/ai-agent.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw new Error('unauth');
+        if (Session.role !== 'dono') window.location.href = 'operador.html';
+
+        document.getElementById('sidebar-root').innerHTML = renderSidebarHTML('dashboard');
+        document.getElementById('ai-chat-root').innerHTML = renderAIChatHTML();
+        initSidebar();
+
+        const kpis = Data.getKPIs();
+        const clientes = Data.getClientes();
+        const projetos = Data.getProjetos();
+        const tickets = Data.getTickets();
+
+        // Date greeting
+        const now = new Date();
+        const hr = now.getHours();
+        const greet = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite';
+        document.getElementById('greeting').textContent = `${greet}! ${Session.user?.nome} 👑`;
+        document.getElementById('current-date').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        // KPI Cards
+        const mrrGrow = (((kpis.mrr - kpis.mrrAnterior) / kpis.mrrAnterior) * 100).toFixed(1);
+        const kpiData = [
+            { label: 'MRR', value: formatCurrency(kpis.mrr), change: `+${mrrGrow}%`, dir: 'up', icon: '💰', color: 'linear-gradient(90deg,var(--accent-cyan),var(--accent-violet))' },
+            { label: 'Clientes Ativos', value: kpis.clientesAtivos, change: `${kpis.totalClientes} total`, dir: 'neutral', icon: '👥', color: 'linear-gradient(90deg,var(--accent-violet),var(--accent-pink))' },
+            { label: 'Projetos Ativos', value: kpis.projetosAtivos, change: `${projetos.filter(p => p.status === 'concluido').length} concluídos`, dir: 'neutral', icon: '📁', color: 'linear-gradient(90deg,var(--accent-green),var(--accent-cyan))' },
+            { label: 'Taxa de Retenção', value: kpis.taxaRetencao + '%', change: 'Meta: 90%', dir: kpis.taxaRetencao >= 90 ? 'up' : 'neutral', icon: '🔒', color: 'linear-gradient(90deg,var(--accent-yellow),var(--accent-pink))' },
+            { label: 'Satisfação Média', value: '⭐ ' + kpis.satisfacaoMedia, change: '/ 5.0', dir: 'up', icon: '😊', color: 'linear-gradient(90deg,var(--accent-pink),var(--accent-violet))' },
+            { label: 'Tickets Abertos', value: tickets.filter(t => t.status === 'aberto').length, change: tickets.filter(t => t.prioridade === 'critica' && t.status !== 'resolvido').length + ' críticos', dir: tickets.filter(t => t.status === 'aberto').length > 2 ? 'down' : 'up', icon: '🎫', color: 'linear-gradient(90deg,var(--accent-red),var(--accent-pink))' },
+        ];
+
+        const kpiGrid = document.getElementById('kpi-grid');
+        kpiData.forEach(k => {
+            kpiGrid.innerHTML += `
+        <div class="kpi-card" style="--kpi-color:${k.color}">
+          <div class="kpi-icon">${k.icon}</div>
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+          <div class="kpi-change ${k.dir}">${k.dir === 'up' ? '▲' : k.dir === 'down' ? '▼' : '—'} ${k.change}</div>
+        </div>`;
+        });
+
+        // Chart MRR
+        new Chart(document.getElementById('chart-mrr'), {
+            type: 'line',
+            data: {
+                labels: kpis.meses,
+                datasets: [{
+                    label: 'MRR (R$)',
+                    data: kpis.receitaMensal,
+                    borderColor: '#00d4ff',
+                    backgroundColor: 'rgba(0,212,255,.08)',
+                    fill: true,
+                    tension: .4,
+                    pointBackgroundColor: '#00d4ff',
+                    pointRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+                    y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => 'R$' + (v / 1000).toFixed(0) + 'k' } }
+                }
+            }
+        });
+
+        // Chart Serviços
+        const svc = kpis.receitaPorServico;
+        new Chart(document.getElementById('chart-servicos'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(svc),
+                datasets: [{
+                    data: Object.values(svc),
+                    backgroundColor: ['#00d4ff', '#7c3aed', '#10b981', '#f59e0b', '#f472b6'],
+                    borderWidth: 0,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 14, boxWidth: 12, boxHeight: 12 } }
+                }
+            }
+        });
+
+        // Pipeline
+        const pipelineEl = document.getElementById('pipeline-list');
+        kpis.pipeline.forEach(stage => {
+            pipelineEl.innerHTML += `
+        <div class="stat-pair">
+          <span class="stat-key">${stage.stage}</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="stat-key">${stage.count} cliente(s)</span>
+            <span class="stat-val">${stage.valor > 0 ? formatCurrency(stage.valor) : '—'}</span>
+          </div>
+        </div>`;
+        });
+
+        // Alert clients
+        const alertEl = document.getElementById('alert-clients');
+        const alertClients = clientes.filter(c => c.status === 'churn_risk' || c.satisfacao <= 3.5);
+        if (alertClients.length === 0) {
+            alertEl.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div>Todos os clientes estão saudáveis</div></div>';
+        } else {
+            alertClients.forEach(c => {
+                alertEl.innerHTML += `
+          <div class="stat-pair">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="avatar">${initials(c.nome)}</div>
+              <div>
+                <div style="font-size:.85rem;font-weight:600">${c.nome}</div>
+                <div style="font-size:.72rem;color:var(--text-muted)">${c.cidade}</div>
+              </div>
+            </div>
+            <div>${statusBadge(c.status)}</div>
+          </div>`;
+            });
+        }
+
+        // Recent activity
+        const acts = [];
+        clientes.forEach(c => c.historico.slice(0, 1).forEach(h => acts.push({ ...h, cliente: c.nome })));
+        acts.sort((a, b) => new Date(b.data) - new Date(a.data));
+        const actEl = document.getElementById('recent-activity');
+        acts.slice(0, 6).forEach(a => {
+            const icons = { reuniao: '🤝', email: '✉️', call: '📞' };
+            actEl.innerHTML += `
+        <div class="stat-pair">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.1rem">${icons[a.tipo] || '📌'}</span>
+            <div>
+              <div style="font-size:.85rem;font-weight:500">${a.desc}</div>
+              <div style="font-size:.72rem;color:var(--text-muted)">${a.cliente}</div>
+            </div>
+          </div>
+          <span style="font-size:.75rem;color:var(--text-muted)">${timeAgo(a.data)}</span>
+        </div>`;
+        });
+
+        function saveMeta() {
+            showToast('Meta salva com sucesso!', 'success');
+            closeModal('modal-nova-meta');
+        }
+
+        initAIChat('dono');
+    </script>
+</body>
+
+</html>
