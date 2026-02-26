@@ -74,7 +74,7 @@ async function exportDOCX({ title, text }) {
 export function createApp(env = process.env) {
   const getEnv = (key, fallback = '') => String(env[key] ?? fallback).trim();
 
-  const MODEL = getEnv('OPENAI_MODEL', 'gpt-4.1-mini');
+  const MODEL = getEnv('OPENAI_MODEL', 'gpt-4o-mini');
   const COMPANY_NAME = getEnv('COMPANY_NAME', 'Nexus AI Consultoria');
   const COMPANY_POSITIONING = getEnv('COMPANY_POSITIONING', 'Consultoria especializada em IA, BI e Dashboards Power BI');
   const COMPANY_BUSINESS_MODEL = getEnv('COMPANY_BUSINESS_MODEL', 'Consultoria B2B de alto valor, contratos recorrentes e projetos de transformacao orientada a dados');
@@ -262,6 +262,26 @@ export function createApp(env = process.env) {
       res.json({ text, model: MODEL });
     } catch (err) {
       res.status(500).json({ error: 'Falha ao gerar minuta com OpenAI.', detail: err.message });
+    }
+  });
+
+  app.post('/api/ai/chat', async (req, res) => {
+    if (!ensureAI(req, res)) return;
+    try {
+      const messages = req.body?.messages || [];
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: 'Formato de historico invalido ou vazio.' });
+      }
+
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        temperature: 0.2,
+        messages: messages
+      });
+      const text = response.choices?.[0]?.message?.content || '';
+      res.json({ text, model: MODEL });
+    } catch (err) {
+      res.status(500).json({ error: 'Falha ao processar chat com OpenAI.', detail: err.message });
     }
   });
 
