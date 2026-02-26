@@ -2524,7 +2524,9 @@ ${(tickets || []).filter(t => t.status !== 'fechado').map(t => `- [${t.prioridad
           })
         });
         const data = await r.json();
-        const reply = data.text || 'Erro ao processar.';
+        if (!r.ok) throw new Error(data.detail || data.error || 'Erro interno no servidor da IA.');
+
+        const reply = data.text || 'Nenhuma resposta recebida.';
         thinking.remove();
         hist.push({ role: 'assistant', content: reply });
         localStorage.setItem(IA_HIST_KEY, JSON.stringify(hist.slice(-30)));
