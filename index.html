@@ -2186,6 +2186,20 @@ CREATE POLICY "allow_all" ON crm_leads FOR ALL USING (true) WITH CHECK (true);`;
             ? await SB.from('crm_projetos').update(payload).eq('id', id)
             : await SB.from('crm_projetos').insert(payload);
           if (error) { toast(error.message, 'err'); return; }
+
+          if (!id && payload.valor && Number(payload.valor) > 0) {
+            await SB.from('crm_contratos').insert({
+              titulo: `Projeto: ${titulo}`,
+              descricao: `Projeto: ${titulo}`,
+              cliente_id: payload.cliente_id,
+              cliente_nome: payload.cliente_nome,
+              tipo: 'pontual',
+              valor: payload.valor,
+              status: 'pendente',
+              data_vencimento: payload.prazo || new Date().toISOString().split('T')[0]
+            }).catch(() => { });
+          }
+
           toast(id ? 'Projeto atualizado!' : 'Projeto criado!'); closeModal(); navigate('projetos'); updateBadges();
         } catch (e) { toast(e.message, 'err'); }
       }, id ? async () => {
@@ -2236,7 +2250,7 @@ CREATE POLICY "allow_all" ON crm_leads FOR ALL USING (true) WITH CHECK (true);`;
           <tbody>
             ${todos.map(f => `
               <tr class="fin-row">
-                <td class="fw-600">${f.descricao || '—'}</td>
+                <td class="fw-600">${f.titulo || f.descricao || '—'}</td>
                 <td class="text-muted">${f.cliente_nome || '—'}</td>
                 <td>${f.tipo === 'recorrente' ? '<span class="badge bg-green">Recorrente</span>' : f.tipo === 'pontual' ? '<span class="badge bg-blue">Pontual</span>' : '<span class="badge bg-orange">Hora</span>'}</td>
                 <td class="fw-700" style="color:var(--accent)">${fmtBRL(f.valor)}</td>
@@ -2274,9 +2288,10 @@ CREATE POLICY "allow_all" ON crm_leads FOR ALL USING (true) WITH CHECK (true);`;
         if (!v('f-desc') || !v('f-val') || !v('f-venc')) return toast('Preencha os campos obrigatórios', 'err');
         const clienteSel = window._clientes?.find(c => c.id === v('f-cliente'));
         const { error } = await SB.from('crm_contratos').insert({
-          descricao: v('f-desc'), cliente_id: v('f-cliente') || null,
-          cliente_nome: clienteSel?.nome || null, tipo: v('f-tipo'),
-          valor: v('f-val'), data_vencimento: v('f-venc'), status: v('f-st')
+          titulo: v('f-desc'), descricao: v('f-desc'),
+          cliente_id: v('f-cliente') || null, cliente_nome: clienteSel?.nome || null,
+          tipo: v('f-tipo'), valor: v('f-val'),
+          data_vencimento: v('f-venc'), status: v('f-st')
         });
         if (error) { toast(error.message, 'err'); return; }
         toast('Lançamento criado!'); closeModal(); navigate('financeiro'); updateBadges();
