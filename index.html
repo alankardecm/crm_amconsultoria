@@ -95,9 +95,9 @@
         </div>
       </div>
 
-      <div class="login-divider">── Dados de acesso ──</div>
+      <div class="login-divider" id="login-divider">── Dados de acesso ──</div>
 
-      <div class="form-field">
+      <div class="form-field" id="demo-nome-wrap">
         <label class="form-label">Nome</label>
         <input type="text" class="form-control" id="input-nome" placeholder="Seu nome completo" />
       </div>
@@ -109,7 +109,7 @@
         </select>
       </div>
 
-      <div class="login-features">
+      <div class="login-features" id="demo-features">
         <div class="feature-item"><div class="feature-dot"></div>Dashboard com KPIs em tempo real</div>
         <div class="feature-item"><div class="feature-dot"></div>Agente de IA contextual NEXUS</div>
         <div class="feature-item"><div class="feature-dot"></div>Kanban de projetos e demandas</div>
@@ -120,16 +120,50 @@
 
       <div class="cloud-auth-card" id="cloud-auth-card" style="display:none">
         <div class="cloud-auth-title">☁️ Login Seguro (Supabase)</div>
-        <div class="cloud-auth-sub">Use e-mail e senha para ambiente de produção.</div>
-        <div class="form-field">
-          <label class="form-label">E-mail</label>
-          <input type="email" class="form-control" id="cloud-email" placeholder="voce@empresa.com" />
+        <div class="cloud-auth-sub">Acesso apenas por e-mail e senha.</div>
+
+        <div class="cloud-auth-switch">
+          <button class="cloud-switch-btn active" id="auth-mode-login" type="button">Entrar</button>
+          <button class="cloud-switch-btn" id="auth-mode-signup" type="button">Criar conta</button>
         </div>
-        <div class="form-field">
+
+        <div id="cloud-login-fields">
+          <div class="form-field">
+            <label class="form-label">E-mail</label>
+            <input type="email" class="form-control" id="cloud-email" placeholder="voce@empresa.com" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">Senha</label>
+            <input type="password" class="form-control" id="cloud-password" placeholder="••••••••" />
+          </div>
+          <button class="btn-enter" id="btn-cloud-login">Entrar com e-mail e senha</button>
+        </div>
+
+        <div id="cloud-signup-fields" style="display:none">
+          <div class="form-field">
+            <label class="form-label">Nome</label>
+            <input type="text" class="form-control" id="cloud-signup-name" placeholder="Seu nome" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">E-mail</label>
+            <input type="email" class="form-control" id="cloud-signup-email" placeholder="voce@empresa.com" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">Senha</label>
+            <input type="password" class="form-control" id="cloud-signup-password" placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">Confirmar senha</label>
+            <input type="password" class="form-control" id="cloud-signup-password2" placeholder="Repita a senha" />
+          </div>
+          <button class="btn-enter" id="btn-cloud-signup">Criar usuário</button>
+          <div class="cloud-auth-hint">Novos cadastros entram como <strong>cliente</strong> por padrão.</div>
+        </div>
+
+        <div class="form-field" style="display:none">
           <label class="form-label">Senha</label>
-          <input type="password" class="form-control" id="cloud-password" placeholder="••••••••" />
+          <input type="password" class="form-control" />
         </div>
-        <button class="btn-enter" id="btn-cloud-login">Entrar com Supabase</button>
         <div class="cloud-auth-msg" id="cloud-auth-msg"></div>
       </div>
 
@@ -202,15 +236,41 @@
     // Supabase cloud auth (optional)
     (async () => {
       const card = document.getElementById('cloud-auth-card');
+      const modeLoginBtn = document.getElementById('auth-mode-login');
+      const modeSignupBtn = document.getElementById('auth-mode-signup');
+      const loginFields = document.getElementById('cloud-login-fields');
+      const signupFields = document.getElementById('cloud-signup-fields');
       const msg = document.getElementById('cloud-auth-msg');
-      const btn = document.getElementById('btn-cloud-login');
+      const btnLogin = document.getElementById('btn-cloud-login');
+      const btnSignup = document.getElementById('btn-cloud-signup');
       const state = await CloudAuth.init();
       if (!state.enabled) return;
+
+      // Hide local/demo flow and keep only email+password cloud auth.
+      document.getElementById('role-grid').style.display = 'none';
+      document.getElementById('login-divider').style.display = 'none';
+      document.getElementById('demo-nome-wrap').style.display = 'none';
+      document.getElementById('cliente-select-wrap').style.display = 'none';
+      document.getElementById('demo-features').style.display = 'none';
+      document.getElementById('btn-enter').style.display = 'none';
+
       card.style.display = 'block';
-      msg.textContent = 'Modo cloud ativo.';
+      msg.textContent = 'Modo cloud ativo. Entre ou crie sua conta.';
       msg.className = 'cloud-auth-msg ok';
 
-      btn.addEventListener('click', async () => {
+      function switchMode(mode) {
+        const isLogin = mode === 'login';
+        loginFields.style.display = isLogin ? 'block' : 'none';
+        signupFields.style.display = isLogin ? 'none' : 'block';
+        modeLoginBtn.classList.toggle('active', isLogin);
+        modeSignupBtn.classList.toggle('active', !isLogin);
+        msg.textContent = '';
+      }
+
+      modeLoginBtn.addEventListener('click', () => switchMode('login'));
+      modeSignupBtn.addEventListener('click', () => switchMode('signup'));
+
+      btnLogin.addEventListener('click', async () => {
         const email = document.getElementById('cloud-email').value.trim();
         const password = document.getElementById('cloud-password').value;
         if (!email || !password) {
@@ -219,8 +279,8 @@
           return;
         }
 
-        btn.disabled = true;
-        btn.textContent = 'Validando...';
+        btnLogin.disabled = true;
+        btnLogin.textContent = 'Validando...';
         try {
           const result = await CloudAuth.signIn(email, password);
           msg.textContent = `Login autorizado para ${result.user.role}.`;
@@ -230,8 +290,53 @@
           msg.textContent = err.message || 'Falha no login cloud.';
           msg.className = 'cloud-auth-msg warn';
         } finally {
-          btn.disabled = false;
-          btn.textContent = 'Entrar com Supabase';
+          btnLogin.disabled = false;
+          btnLogin.textContent = 'Entrar com e-mail e senha';
+        }
+      });
+
+      btnSignup.addEventListener('click', async () => {
+        const nome = document.getElementById('cloud-signup-name').value.trim();
+        const email = document.getElementById('cloud-signup-email').value.trim();
+        const password = document.getElementById('cloud-signup-password').value;
+        const password2 = document.getElementById('cloud-signup-password2').value;
+
+        if (!nome || !email || !password || !password2) {
+          msg.textContent = 'Preencha nome, e-mail e senha.';
+          msg.className = 'cloud-auth-msg warn';
+          return;
+        }
+        if (password.length < 6) {
+          msg.textContent = 'Senha deve ter ao menos 6 caracteres.';
+          msg.className = 'cloud-auth-msg warn';
+          return;
+        }
+        if (password !== password2) {
+          msg.textContent = 'As senhas nao conferem.';
+          msg.className = 'cloud-auth-msg warn';
+          return;
+        }
+
+        btnSignup.disabled = true;
+        btnSignup.textContent = 'Criando...';
+        try {
+          const result = await CloudAuth.signUp({ nome, email, password });
+          if (result.confirmed) {
+            msg.textContent = 'Conta criada. Faça login para entrar.';
+            msg.className = 'cloud-auth-msg ok';
+            document.getElementById('cloud-email').value = email;
+            document.getElementById('cloud-password').value = password;
+            switchMode('login');
+          } else {
+            msg.textContent = 'Conta criada. Confirme seu e-mail e depois faça login.';
+            msg.className = 'cloud-auth-msg ok';
+          }
+        } catch (err) {
+          msg.textContent = err.message || 'Falha ao criar conta.';
+          msg.className = 'cloud-auth-msg warn';
+        } finally {
+          btnSignup.disabled = false;
+          btnSignup.textContent = 'Criar usuário';
         }
       });
     })();

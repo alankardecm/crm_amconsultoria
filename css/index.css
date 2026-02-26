@@ -1008,6 +1008,35 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   font-size: .75rem;
 }
 
+.cloud-auth-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .45rem;
+  margin-bottom: .85rem;
+}
+
+.cloud-switch-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.03);
+  color: var(--text-secondary);
+  font-size: .78rem;
+  font-weight: 700;
+  padding: .48rem .6rem;
+  transition: all var(--duration) var(--ease);
+}
+
+.cloud-switch-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-cyan);
+}
+
+.cloud-switch-btn.active {
+  color: #fff;
+  border-color: rgba(0,212,255,.4);
+  background: linear-gradient(135deg, rgba(0,212,255,.24), rgba(124,58,237,.34));
+}
+
 .cloud-auth-msg {
   margin-top: .55rem;
   font-size: .74rem;
@@ -1016,6 +1045,12 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
 .cloud-auth-msg.ok { color: var(--accent-green); }
 .cloud-auth-msg.warn { color: var(--accent-yellow); }
+
+.cloud-auth-hint {
+  margin-top: .4rem;
+  font-size: .72rem;
+  color: var(--text-muted);
+}
 
 .integration-note {
   margin-top: .45rem;
