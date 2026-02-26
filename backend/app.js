@@ -82,7 +82,7 @@ export function createApp(env = process.env) {
   const COMPANY_STYLE = getEnv('COMPANY_STYLE', 'Tom executivo, consultivo, orientado a ROI, com linguagem moderna e tech');
   const SUPABASE_URL = getEnv('SUPABASE_URL');
   const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY');
-  const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
+  const OPENAI_API_KEY = getEnv('OPENAI_API_KEY').replace(/\s+/g, '');
   const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
   const app = express();
